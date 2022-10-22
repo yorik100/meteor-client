@@ -79,6 +79,7 @@ public class AntiHunger extends Module {
             ignorePacket = true;
             return;
         }
+		ignorePacket = false;
         if (mc.player.isOnGround() && !lastOnGround && !sendOnGroundTruePacket) sendOnGroundTruePacket = true;
 
         if (mc.player.isOnGround() && sendOnGroundTruePacket && onGround.get()) {

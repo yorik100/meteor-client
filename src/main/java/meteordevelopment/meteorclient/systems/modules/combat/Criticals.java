@@ -42,6 +42,13 @@ public class Criticals extends Module {
         .defaultValue(false)
         .build()
     );
+	
+    private final Setting<Boolean> airCrit = sgGeneral.add(new BoolSetting.Builder()
+        .name("air-crit")
+        .description("Allow critical attacks mid-air.")
+        .defaultValue(false)
+        .build()
+    );
 
     private PlayerInteractEntityC2SPacket attackPacket;
     private HandSwingC2SPacket swingPacket;
@@ -64,7 +71,7 @@ public class Criticals extends Module {
         if (event.packet instanceof IPlayerInteractEntityC2SPacket packet && packet.getType() == PlayerInteractEntityC2SPacket.InteractType.ATTACK) {
             if (skipCrit()) return;
 
-            Entity entity =  packet.getEntity();
+            Entity entity = packet.getEntity();
 
             if (!(entity instanceof LivingEntity) || (entity != Modules.get().get(KillAura.class).getTarget() && ka.get())) return;
 
@@ -132,7 +139,7 @@ public class Criticals extends Module {
     }
 
     private boolean skipCrit() {
-        return !mc.player.isOnGround() || mc.player.isSubmergedInWater() || mc.player.isInLava() || mc.player.isClimbing();
+        return (!airCrit.get() && !mc.player.isOnGround()) || mc.player.isSubmergedInWater() || mc.player.isInLava() || mc.player.isClimbing();
     }
 
     @Override
