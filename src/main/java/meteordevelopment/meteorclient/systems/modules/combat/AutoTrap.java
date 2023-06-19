@@ -23,7 +23,6 @@ import meteordevelopment.orbit.EventHandler;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.Items;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
@@ -236,7 +235,7 @@ public class AutoTrap extends Module {
             case Platform -> {
                 add(targetPos.add(0, -1, 0));
                 add(targetPos.add(1, -1, 0));
-                add(targetPos.add(0, -1, 0));
+                add(targetPos.add(-1, -1, 0));
                 add(targetPos.add(0, -1, 1));
                 add(targetPos.add(0, -1, -1));
             }

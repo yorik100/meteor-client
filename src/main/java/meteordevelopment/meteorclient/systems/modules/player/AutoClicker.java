@@ -37,14 +37,14 @@ public class AutoClicker extends Module {
         .build()
     );
 	
-    private final Setting<Boolean> smartDelay = sgGeneral.add(new BoolSetting.Builder()
+	    private final Setting<Boolean> smartDelay = sgGeneral.add(new BoolSetting.Builder()
         .name("smart-delay")
         .description("Uses the vanilla cooldown to attack entities.")
         .defaultValue(true)
         .visible(() -> leftClickMode.get() != Mode.Disabled)
         .build()
     );
-	
+
     private final Setting<Boolean> breakBlocks = sgGeneral.add(new BoolSetting.Builder()
         .name("break-blocks")
         .description("Allow breaking blocks when autoclicking.")
@@ -52,7 +52,7 @@ public class AutoClicker extends Module {
         .visible(() -> leftClickMode.get() != Mode.Disabled)
         .build()
     );
-	
+
     private final Setting<Boolean> onlyWhenHoldingLeftClick = sgGeneral.add(new BoolSetting.Builder()
         .name("when-holding-left-click")
         .description("Works only when holding left click.")
@@ -78,7 +78,7 @@ public class AutoClicker extends Module {
         .build()
     );
 	
-    private final Setting<Boolean> onlyWhenHoldingRightClick = sgGeneral.add(new BoolSetting.Builder()
+	private final Setting<Boolean> onlyWhenHoldingRightClick = sgGeneral.add(new BoolSetting.Builder()
         .name("when-holding-right-click")
         .description("Works only when holding right click.")
         .defaultValue(true)
@@ -112,6 +112,7 @@ public class AutoClicker extends Module {
             case Disabled -> {}
             case Hold -> mc.options.attackKey.setPressed(true);
             case Press -> {
+
 				if (leftClickTimer <= 500) leftClickTimer++;
 				if (mc.currentScreen != null) break;
 				if (breakBlocks.get() && (client.crosshairTarget.getType() == HitResult.Type.BLOCK) && Input.isPressed2(mc.options.attackKey)) {
@@ -129,8 +130,8 @@ public class AutoClicker extends Module {
             case Disabled -> {}
             case Hold -> mc.options.useKey.setPressed(true);
             case Press -> {
-                if (rightClickTimer <= 500) rightClickTimer++;
-                if ((!onlyWhenHoldingRightClick.get() || Input.isPressed2(mc.options.useKey)) && rightClickTimer > rightClickDelay.get()) {
+                rightClickTimer++;
+                if (rightClickTimer > rightClickDelay.get()) {
                     Utils.rightClick();
                     rightClickTimer = 0;
                 }

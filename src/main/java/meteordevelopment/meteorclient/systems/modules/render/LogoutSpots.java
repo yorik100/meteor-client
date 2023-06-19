@@ -15,7 +15,6 @@ import meteordevelopment.meteorclient.renderer.text.TextRenderer;
 import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.systems.modules.Categories;
 import meteordevelopment.meteorclient.systems.modules.Module;
-import meteordevelopment.meteorclient.utils.misc.Vec3;
 import meteordevelopment.meteorclient.utils.player.PlayerUtils;
 import meteordevelopment.meteorclient.utils.render.NametagUtils;
 import meteordevelopment.meteorclient.utils.render.color.Color;
@@ -25,6 +24,7 @@ import meteordevelopment.orbit.EventHandler;
 import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
+import org.joml.Vector3d;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,55 +41,55 @@ public class LogoutSpots extends Module {
     // General
 
     private final Setting<Double> scale = sgGeneral.add(new DoubleSetting.Builder()
-            .name("scale")
-            .description("The scale.")
-            .defaultValue(1)
-            .min(0)
-            .build()
+        .name("scale")
+        .description("The scale.")
+        .defaultValue(1)
+        .min(0)
+        .build()
     );
 
     private final Setting<Boolean> fullHeight = sgGeneral.add(new BoolSetting.Builder()
-            .name("full-height")
-            .description("Displays the height as the player's full height.")
-            .defaultValue(true)
-            .build()
+        .name("full-height")
+        .description("Displays the height as the player's full height.")
+        .defaultValue(true)
+        .build()
     );
 
     // Render
 
     private final Setting<ShapeMode> shapeMode = sgRender.add(new EnumSetting.Builder<ShapeMode>()
-            .name("shape-mode")
-            .description("How the shapes are rendered.")
-            .defaultValue(ShapeMode.Both)
-            .build()
+        .name("shape-mode")
+        .description("How the shapes are rendered.")
+        .defaultValue(ShapeMode.Both)
+        .build()
     );
 
     private final Setting<SettingColor> sideColor = sgRender.add(new ColorSetting.Builder()
-            .name("side-color")
-            .description("The side color.")
-            .defaultValue(new SettingColor(255, 0, 255, 55))
-            .build()
+        .name("side-color")
+        .description("The side color.")
+        .defaultValue(new SettingColor(255, 0, 255, 55))
+        .build()
     );
 
     private final Setting<SettingColor> lineColor = sgRender.add(new ColorSetting.Builder()
-            .name("line-color")
-            .description("The line color.")
-            .defaultValue(new SettingColor(255, 0, 255))
-            .build()
+        .name("line-color")
+        .description("The line color.")
+        .defaultValue(new SettingColor(255, 0, 255))
+        .build()
     );
 
     private final Setting<SettingColor> nameColor = sgRender.add(new ColorSetting.Builder()
-            .name("name-color")
-            .description("The name color.")
-            .defaultValue(new SettingColor(255, 255, 255))
-            .build()
+        .name("name-color")
+        .description("The name color.")
+        .defaultValue(new SettingColor(255, 255, 255))
+        .build()
     );
 
     private final Setting<SettingColor> nameBackgroundColor = sgRender.add(new ColorSetting.Builder()
-            .name("name-background-color")
-            .description("The name background color.")
-            .defaultValue(new SettingColor(0, 0, 0, 75))
-            .build()
+        .name("name-background-color")
+        .description("The name background color.")
+        .defaultValue(new SettingColor(0, 0, 0, 75))
+        .build()
     );
 
     private final List<Entry> players = new ArrayList<>();
@@ -195,7 +195,7 @@ public class LogoutSpots extends Module {
         return Integer.toString(players.size());
     }
 
-    private static final Vec3 pos = new Vec3();
+    private static final Vector3d pos = new Vector3d();
 
     private class Entry {
         public final double x, y, z;

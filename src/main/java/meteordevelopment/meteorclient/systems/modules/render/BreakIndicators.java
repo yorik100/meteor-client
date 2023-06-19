@@ -30,10 +30,10 @@ public class BreakIndicators extends Module {
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
 
     private final Setting<ShapeMode> shapeMode = sgGeneral.add(new EnumSetting.Builder<ShapeMode>()
-            .name("shape-mode")
-            .description("How the shapes are rendered.")
-            .defaultValue(ShapeMode.Both)
-            .build()
+        .name("shape-mode")
+        .description("How the shapes are rendered.")
+        .defaultValue(ShapeMode.Both)
+        .build()
     );
 
     public final Setting<Boolean> packetMine = sgGeneral.add(new BoolSetting.Builder()
@@ -80,7 +80,7 @@ public class BreakIndicators extends Module {
         float ownBreakingStage = ((ClientPlayerInteractionManagerAccessor) mc.interactionManager).getBreakingProgress();
         BlockPos ownBreakingPos = ((ClientPlayerInteractionManagerAccessor) mc.interactionManager).getCurrentBreakingBlockPos();
 
-        if (ownBreakingPos != null && mc.interactionManager.isBreakingBlock()) {
+        if (ownBreakingPos != null && ownBreakingStage > 0) {
             BlockState state = mc.world.getBlockState(ownBreakingPos);
             VoxelShape shape = state.getOutlineShape(mc.world, ownBreakingPos);
             if (shape == null || shape.isEmpty()) return;
@@ -88,9 +88,8 @@ public class BreakIndicators extends Module {
             Box orig = shape.getBoundingBox();
 
             double shrinkFactor = 1d - ownBreakingStage;
-            double progress = 1d - shrinkFactor;
 
-            renderBlock(event, orig, ownBreakingPos, shrinkFactor, progress);
+            renderBlock(event, orig, ownBreakingPos, shrinkFactor, ownBreakingStage);
         }
 
         blocks.values().forEach(info -> {

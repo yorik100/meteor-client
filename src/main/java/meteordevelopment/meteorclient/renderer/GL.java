@@ -12,7 +12,7 @@ import meteordevelopment.meteorclient.mixininterface.ICapabilityTracker;
 import meteordevelopment.meteorclient.utils.PreInit;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.math.Matrix4f;
+import org.joml.Matrix4f;
 import org.lwjgl.BufferUtils;
 
 import java.lang.reflect.Field;
@@ -166,6 +166,10 @@ public class GL {
         GlStateManager._glUseProgram(program);
     }
 
+    public static void viewport(int x, int y, int width, int height) {
+        GlStateManager._viewport(x, y, width, height);
+    }
+
     // Uniforms
 
     public static int getUniformLocation(int program, String name) {
@@ -197,7 +201,7 @@ public class GL {
     }
 
     public static void uniformMatrix(int location, Matrix4f v) {
-        v.writeColumnMajor(MAT);
+        v.get(MAT);
         GlStateManager._glUniformMatrix4(location, false, MAT);
     }
 

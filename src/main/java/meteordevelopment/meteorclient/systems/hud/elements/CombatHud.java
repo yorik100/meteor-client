@@ -19,7 +19,6 @@ import meteordevelopment.meteorclient.utils.Utils;
 import meteordevelopment.meteorclient.utils.entity.EntityUtils;
 import meteordevelopment.meteorclient.utils.entity.SortPriority;
 import meteordevelopment.meteorclient.utils.entity.TargetUtils;
-import meteordevelopment.meteorclient.utils.misc.FakeClientPlayer;
 import meteordevelopment.meteorclient.utils.player.PlayerUtils;
 import meteordevelopment.meteorclient.utils.render.RenderUtils;
 import meteordevelopment.meteorclient.utils.render.color.Color;
@@ -33,8 +32,8 @@ import net.minecraft.item.BedItem;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.item.SwordItem;
+import net.minecraft.registry.Registries;
 import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.registry.Registry;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -50,6 +49,8 @@ public class CombatHud extends HudElement {
     private static final Color BLACK = new Color(0, 0, 0, 255);
 
     public static final HudElementInfo<CombatHud> INFO = new HudElementInfo<>(Hud.GROUP, "combat", "Displays information about your combat target.", CombatHud::new);
+
+    private static final MatrixStack MATRICES = new MatrixStack();
 
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
 
@@ -196,18 +197,21 @@ public class CombatHud extends HudElement {
             Color primaryColor = TextHud.getSectionColor(0);
             Color secondaryColor = TextHud.getSectionColor(1);
 
-            if (isInEditor()) playerEntity = FakeClientPlayer.getPlayer();
+            if (isInEditor()) playerEntity = mc.player;
             else playerEntity = TargetUtils.getPlayerTarget(range.get(), SortPriority.LowestDistance);
 
-            if (playerEntity == null) return;
+            if (playerEntity == null && !isInEditor()) return;
 
             // Background
             Renderer2D.COLOR.begin();
             Renderer2D.COLOR.quad(x, y, getWidth(), getHeight(), backgroundColor.get());
             Renderer2D.COLOR.render(null);
 
+            if (playerEntity == null) return;
+
             // Player Model
             InventoryScreen.drawEntity(
+                MATRICES,
                 (int) (x + (25 * scale.get())),
                 (int) (y + (66 * scale.get())),
                 (int) (30 * scale.get()),
@@ -431,7 +435,7 @@ public class CombatHud extends HudElement {
     public static List<Enchantment> getDefaultEnchantments() {
         List<Enchantment> enchantments = new ArrayList<>();
 
-        for (Enchantment enchantment : Registry.ENCHANTMENT) {
+        for (Enchantment enchantment : Registries.ENCHANTMENT) {
             enchantments.add(enchantment);
         }
 

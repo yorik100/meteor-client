@@ -5,12 +5,12 @@
 
 package meteordevelopment.meteorclient.mixin;
 
+import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import meteordevelopment.meteorclient.MeteorClient;
 import meteordevelopment.meteorclient.events.entity.player.FinishUsingItemEvent;
 import meteordevelopment.meteorclient.events.entity.player.StoppedUsingItemEvent;
 import meteordevelopment.meteorclient.events.game.ItemStackTooltipEvent;
-import meteordevelopment.meteorclient.systems.modules.Modules;
-import meteordevelopment.meteorclient.systems.modules.render.BetterTooltips;
+import meteordevelopment.meteorclient.events.game.SectionVisibleEvent;
 import meteordevelopment.meteorclient.utils.Utils;
 import net.minecraft.client.item.TooltipContext;
 import net.minecraft.entity.LivingEntity;
@@ -23,7 +23,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
 import java.util.List;
 
@@ -31,11 +30,14 @@ import static meteordevelopment.meteorclient.MeteorClient.mc;
 
 @Mixin(ItemStack.class)
 public abstract class ItemStackMixin {
-    @Inject(method = "getTooltip", at = @At("TAIL"), locals = LocalCapture.CAPTURE_FAILSOFT)
-    private void onGetTooltip(PlayerEntity player, TooltipContext context, CallbackInfoReturnable<List<Text>> info, List<Text> list) {
+    @ModifyReturnValue(method = "getTooltip", at = @At("RETURN"))
+    private List<Text> onGetTooltip(List<Text> original, PlayerEntity player, TooltipContext context) {
         if (Utils.canUpdate()) {
-            MeteorClient.EVENT_BUS.post(ItemStackTooltipEvent.get((ItemStack) (Object) this, list));
+            ItemStackTooltipEvent event = MeteorClient.EVENT_BUS.post(ItemStackTooltipEvent.get((ItemStack) (Object) this, original));
+            return event.list;
         }
+
+        return original;
     }
 
     @Inject(method = "finishUsing", at = @At("HEAD"))
@@ -52,10 +54,9 @@ public abstract class ItemStackMixin {
         }
     }
 
-    @Inject(method = "getHideFlags", at = @At("HEAD"), cancellable = true)
-    private void onGetHideFlags(CallbackInfoReturnable<Integer> cir) {
-        if (Modules.get().get(BetterTooltips.class).alwaysShow()) {
-            cir.setReturnValue(0);
-        }
+    @ModifyReturnValue(method = "isSectionVisible", at = @At("RETURN"))
+    private static boolean onSectionVisible(boolean original, int flags, ItemStack.TooltipSection tooltipSection) {
+        SectionVisibleEvent event = MeteorClient.EVENT_BUS.post(SectionVisibleEvent.get(tooltipSection, original));
+        return event.visible;
     }
 }

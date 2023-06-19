@@ -9,6 +9,7 @@ import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import meteordevelopment.meteorclient.gui.renderer.GuiRenderer;
 import meteordevelopment.meteorclient.gui.screens.settings.*;
+import meteordevelopment.meteorclient.gui.themes.meteor.widgets.WMeteorLabel;
 import meteordevelopment.meteorclient.gui.utils.Cell;
 import meteordevelopment.meteorclient.gui.utils.CharFilter;
 import meteordevelopment.meteorclient.gui.utils.SettingsWidgetFactory;
@@ -26,24 +27,18 @@ import meteordevelopment.meteorclient.utils.render.color.SettingColor;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import static meteordevelopment.meteorclient.MeteorClient.mc;
 
-public class DefaultSettingsWidgetFactory implements SettingsWidgetFactory {
-    protected interface Factory {
-        void create(WTable table, Setting<?> setting);
-    }
-
+public class DefaultSettingsWidgetFactory extends SettingsWidgetFactory {
     private static final SettingColor WHITE = new SettingColor();
 
-    private final GuiTheme theme;
-    private final Map<Class<?>, Factory> factories = new HashMap<>();
-
     public DefaultSettingsWidgetFactory(GuiTheme theme) {
-        this.theme = theme;
+        super(theme);
 
         factories.put(BoolSetting.class, (table, setting) -> boolW(table, (BoolSetting) setting));
         factories.put(IntSetting.class, (table, setting) -> intW(table, (IntSetting) setting));
@@ -67,12 +62,14 @@ public class DefaultSettingsWidgetFactory implements SettingsWidgetFactory {
         factories.put(StatusEffectAmplifierMapSetting.class, (table, setting) -> statusEffectAmplifierMapW(table, (StatusEffectAmplifierMapSetting) setting));
         factories.put(StatusEffectListSetting.class, (table, setting) -> statusEffectListW(table, (StatusEffectListSetting) setting));
         factories.put(StorageBlockListSetting.class, (table, setting) -> storageBlockListW(table, (StorageBlockListSetting) setting));
+        factories.put(ScreenHandlerListSetting.class, (table, setting) -> screenHandlerListW(table, (ScreenHandlerListSetting) setting));
         factories.put(BlockDataSetting.class, (table, setting) -> blockDataW(table, (BlockDataSetting<?>) setting));
         factories.put(PotionSetting.class, (table, setting) -> potionW(table, (PotionSetting) setting));
         factories.put(StringListSetting.class, (table, setting) -> stringListW(table, (StringListSetting) setting));
         factories.put(BlockPosSetting.class, (table, setting) -> blockPosW(table, (BlockPosSetting) setting));
         factories.put(ColorListSetting.class, (table, setting) -> colorListW(table, (ColorListSetting) setting));
         factories.put(FontFaceSetting.class, (table, setting) -> fontW(table, (FontFaceSetting) setting));
+        factories.put(Vector3dSetting.class, (table, setting) -> vector3dW(table, (Vector3dSetting) setting));
     }
 
     @Override
@@ -91,7 +88,9 @@ public class DefaultSettingsWidgetFactory implements SettingsWidgetFactory {
         list.minWidth = list.width;
 
         // Remove hidden settings
-        for (RemoveInfo removeInfo : removeInfoList) removeInfo.remove(list);
+        for (RemoveInfo removeInfo : removeInfoList) {
+            removeInfo.remove(list);
+        }
 
         return list;
     }
@@ -121,7 +120,7 @@ public class DefaultSettingsWidgetFactory implements SettingsWidgetFactory {
 
             table.add(theme.label(setting.title)).top().marginTop(settingTitleTopMargin()).widget().tooltip = setting.description;
 
-            Factory factory = factories.get(setting.getClass());
+            Factory factory = getFactory(setting.getClass());
             if (factory != null) factory.create(table, setting);
 
             table.row();
@@ -235,9 +234,14 @@ public class DefaultSettingsWidgetFactory implements SettingsWidgetFactory {
     }
 
     private void keybindW(WTable table, KeybindSetting setting) {
-        WKeybind keybind = table.add(theme.keybind(setting.get(), setting.getDefaultValue())).expandX().widget();
+        WHorizontalList list = table.add(theme.horizontalList()).expandX().widget();
+
+        WKeybind keybind = list.add(theme.keybind(setting.get(), setting.getDefaultValue())).expandX().widget();
         keybind.action = setting::onChanged;
         setting.widget = keybind;
+
+        WButton reset = list.add(theme.button(GuiRenderer.RESET)).expandCellX().right().widget();
+        reset.action = keybind::resetBind;
     }
 
     private void blockW(WTable table, BlockSetting setting) {
@@ -324,6 +328,10 @@ public class DefaultSettingsWidgetFactory implements SettingsWidgetFactory {
 
     private void storageBlockListW(WTable table, StorageBlockListSetting setting) {
         selectW(table, setting, () -> mc.setScreen(new StorageBlockListSettingScreen(theme, setting)));
+    }
+
+    private void screenHandlerListW(WTable table, ScreenHandlerListSetting setting) {
+        selectW(table, setting, () -> mc.setScreen(new ScreenHandlerSettingScreen(theme, setting)));
     }
 
     private void blockDataW(WTable table, BlockDataSetting<?> setting) {
@@ -421,11 +429,50 @@ public class DefaultSettingsWidgetFactory implements SettingsWidgetFactory {
         }
     }
 
+    private void vector3dW(WTable table, Vector3dSetting setting) {
+        WTable internal = table.add(theme.table()).expandX().widget();
+
+        WDoubleEdit x = addVectorComponent(internal, "X", setting.get().x, val -> setting.get().x = val, setting);
+        WDoubleEdit y = addVectorComponent(internal, "Y", setting.get().y, val -> setting.get().y = val, setting);
+        WDoubleEdit z = addVectorComponent(internal, "Z", setting.get().z, val -> setting.get().z = val, setting);
+
+        reset(table, setting, () -> {
+            x.set(setting.get().x);
+            y.set(setting.get().y);
+            z.set(setting.get().z);
+        });
+    }
+
+    private WDoubleEdit addVectorComponent(WTable table, String label, double value, Consumer<Double> update, Vector3dSetting setting) {
+        table.add(theme.label(label + ": "));
+
+        WDoubleEdit component = table.add(theme.doubleEdit(value, setting.min, setting.max, setting.sliderMin, setting.sliderMax, setting.decimalPlaces, setting.noSlider)).expandX().widget();
+        if (setting.onSliderRelease) {
+            component.actionOnRelease = () -> update.accept(component.get());
+        } else {
+            component.action = () -> update.accept(component.get());
+        }
+
+        table.row();
+
+        return component;
+    }
+
     // Other
 
     private void selectW(WContainer c, Setting<?> setting, Runnable action) {
-        WButton button = c.add(theme.button("Select")).expandCellX().widget();
+        boolean addCount = WSelectedCountLabel.getSize(setting) != -1;
+
+        WContainer c2 = c;
+        if (addCount) {
+            c2 = c.add(theme.horizontalList()).expandCellX().widget();
+            ((WHorizontalList) c2).spacing *= 2;
+        }
+
+        WButton button = c2.add(theme.button("Select")).expandCellX().widget();
         button.action = action;
+
+        if (addCount) c2.add(new WSelectedCountLabel(setting).color(theme.textSecondaryColor()));
 
         reset(c, setting, null);
     }
@@ -436,5 +483,35 @@ public class DefaultSettingsWidgetFactory implements SettingsWidgetFactory {
             setting.reset();
             if (action != null) action.run();
         };
+    }
+
+    private static class WSelectedCountLabel extends WMeteorLabel {
+        private final Setting<?> setting;
+        private int lastSize = -1;
+
+        public WSelectedCountLabel(Setting<?> setting) {
+            super("", false);
+
+            this.setting = setting;
+        }
+
+        @Override
+        protected void onRender(GuiRenderer renderer, double mouseX, double mouseY, double delta) {
+            int size = getSize(setting);
+
+            if (size != lastSize) {
+                set("(" + size + " selected)");
+                lastSize = size;
+            }
+
+            super.onRender(renderer, mouseX, mouseY, delta);
+        }
+
+        public static int getSize(Setting<?> setting) {
+            if (setting.get() instanceof Collection<?> collection) return collection.size();
+            if (setting.get() instanceof Map<?, ?> map) return map.size();
+
+            return -1;
+        }
     }
 }

@@ -22,7 +22,7 @@ import net.minecraft.client.gui.screen.ChatScreen;
 import net.minecraft.client.gui.screen.ingame.*;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
-import net.minecraft.item.ItemGroup;
+import net.minecraft.item.ItemGroups;
 
 import static org.lwjgl.glfw.GLFW.*;
 
@@ -36,55 +36,55 @@ public class GUIMove extends Module {
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
 
     private final Setting<Screens> screens = sgGeneral.add(new EnumSetting.Builder<Screens>()
-            .name("gUIs")
-            .description("Which GUIs to move in.")
-            .defaultValue(Screens.Inventory)
-            .build()
+        .name("guis")
+        .description("Which GUIs to move in.")
+        .defaultValue(Screens.Inventory)
+        .build()
     );
 
     private final Setting<Boolean> jump = sgGeneral.add(new BoolSetting.Builder()
-            .name("jump")
-            .description("Allows you to jump while in GUIs.")
-            .defaultValue(true)
-            .onChanged(aBoolean -> {
-                if (isActive() && !aBoolean) set(mc.options.jumpKey, false);
-            })
-            .build()
+        .name("jump")
+        .description("Allows you to jump while in GUIs.")
+        .defaultValue(true)
+        .onChanged(aBoolean -> {
+            if (isActive() && !aBoolean) set(mc.options.jumpKey, false);
+        })
+        .build()
     );
 
     private final Setting<Boolean> sneak = sgGeneral.add(new BoolSetting.Builder()
-            .name("sneak")
-            .description("Allows you to sneak while in GUIs.")
-            .defaultValue(true)
-            .onChanged(aBoolean -> {
-                if (isActive() && !aBoolean) set(mc.options.sneakKey, false);
-            })
-            .build()
+        .name("sneak")
+        .description("Allows you to sneak while in GUIs.")
+        .defaultValue(true)
+        .onChanged(aBoolean -> {
+            if (isActive() && !aBoolean) set(mc.options.sneakKey, false);
+        })
+        .build()
     );
 
     private final Setting<Boolean> sprint = sgGeneral.add(new BoolSetting.Builder()
-            .name("sprint")
-            .description("Allows you to sprint while in GUIs.")
-            .defaultValue(true)
-            .onChanged(aBoolean -> {
-                if (isActive() && !aBoolean) set(mc.options.sprintKey, false);
-            })
-            .build()
+        .name("sprint")
+        .description("Allows you to sprint while in GUIs.")
+        .defaultValue(true)
+        .onChanged(aBoolean -> {
+            if (isActive() && !aBoolean) set(mc.options.sprintKey, false);
+        })
+        .build()
     );
 
     private final Setting<Boolean> arrowsRotate = sgGeneral.add(new BoolSetting.Builder()
-            .name("arrows-rotate")
-            .description("Allows you to use your arrow keys to rotate while in GUIs.")
-            .defaultValue(true)
-            .build()
+        .name("arrows-rotate")
+        .description("Allows you to use your arrow keys to rotate while in GUIs.")
+        .defaultValue(true)
+        .build()
     );
 
     private final Setting<Double> rotateSpeed = sgGeneral.add(new DoubleSetting.Builder()
-            .name("rotate-speed")
-            .description("Rotation speed while in GUIs.")
-            .defaultValue(4)
-            .min(0)
-            .build()
+        .name("rotate-speed")
+        .description("Rotation speed while in GUIs.")
+        .defaultValue(4)
+        .min(0)
+        .build()
     );
 
     public GUIMove() {
@@ -147,6 +147,6 @@ public class GUIMove extends Module {
     }
 
     public boolean skip() {
-        return mc.currentScreen == null || (mc.currentScreen instanceof CreativeInventoryScreen && CreativeInventoryScreenAccessor.getSelectedTab() == ItemGroup.SEARCH.getIndex()) || mc.currentScreen instanceof ChatScreen || mc.currentScreen instanceof SignEditScreen || mc.currentScreen instanceof AnvilScreen || mc.currentScreen instanceof AbstractCommandBlockScreen || mc.currentScreen instanceof StructureBlockScreen;
+        return mc.currentScreen == null || (mc.currentScreen instanceof CreativeInventoryScreen && CreativeInventoryScreenAccessor.getSelectedTab() == ItemGroups.getSearchGroup()) || mc.currentScreen instanceof ChatScreen || mc.currentScreen instanceof SignEditScreen || mc.currentScreen instanceof AnvilScreen || mc.currentScreen instanceof AbstractCommandBlockScreen || mc.currentScreen instanceof StructureBlockScreen;
     }
 }

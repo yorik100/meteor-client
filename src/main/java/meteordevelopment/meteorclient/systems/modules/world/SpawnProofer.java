@@ -63,10 +63,10 @@ public class SpawnProofer extends Module {
     );
 
     private final Setting<Boolean> newMobSpawnLightLevel = sgGeneral.add(new BoolSetting.Builder()
-            .name("new-mob-spawn-light-level")
-            .description("Use the new (1.18+) mob spawn behavior")
-            .defaultValue(true)
-            .build()
+        .name("new-mob-spawn-light-level")
+        .description("Use the new (1.18+) mob spawn behavior")
+        .defaultValue(true)
+        .build()
     );
 
 
@@ -160,7 +160,7 @@ public class SpawnProofer extends Module {
     }
 
     private boolean isNonOpaqueBlock(Block block) {
-        return block instanceof AbstractButtonBlock ||
+        return block instanceof ButtonBlock ||
             block instanceof SlabBlock ||
             block instanceof AbstractPressurePlateBlock ||
             block instanceof TransparentBlock ||
