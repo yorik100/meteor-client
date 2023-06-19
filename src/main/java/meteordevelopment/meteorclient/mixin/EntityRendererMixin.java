@@ -5,6 +5,7 @@
 
 package meteordevelopment.meteorclient.mixin;
 
+import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import meteordevelopment.meteorclient.mixininterface.IEntityRenderer;
 import meteordevelopment.meteorclient.systems.modules.Modules;
 import meteordevelopment.meteorclient.systems.modules.render.Fullbright;
@@ -30,14 +31,16 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(EntityRenderer.class)
 public abstract class EntityRendererMixin<T extends Entity> implements IEntityRenderer {
-    @Shadow public abstract Identifier getTexture(Entity entity);
+    @Shadow
+    public abstract Identifier getTexture(Entity entity);
 
     @Inject(method = "renderLabelIfPresent", at = @At("HEAD"), cancellable = true)
     private void onRenderLabel(T entity, Text text, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light, CallbackInfo info) {
         if (PostProcessShaders.rendering) info.cancel();
         if (Modules.get().get(NoRender.class).noNametags()) info.cancel();
         if (!(entity instanceof PlayerEntity)) return;
-        if (Modules.get().get(Nametags.class).playerNametags() && !(EntityUtils.getGameMode((PlayerEntity) entity) == null && Modules.get().get(Nametags.class).excludeBots())) info.cancel();
+        if (Modules.get().get(Nametags.class).playerNametags() && !(EntityUtils.getGameMode((PlayerEntity) entity) == null && Modules.get().get(Nametags.class).excludeBots()))
+            info.cancel();
     }
 
     @Inject(method = "shouldRender", at = @At("HEAD"), cancellable = true)
@@ -46,9 +49,9 @@ public abstract class EntityRendererMixin<T extends Entity> implements IEntityRe
         if (Modules.get().get(NoRender.class).noFallingBlocks() && entity instanceof FallingBlockEntity) cir.cancel();
     }
 
-    @Inject(method = "getSkyLight", at = @At("RETURN"), cancellable = true)
-    private void onGetSkyLight(CallbackInfoReturnable<Integer> info) {
-        info.setReturnValue(Math.max(Modules.get().get(Fullbright.class).getLuminance(), info.getReturnValueI()));
+    @ModifyReturnValue(method = "getSkyLight", at = @At("RETURN"))
+    private int onGetSkyLight(int original) {
+        return Math.max(Modules.get().get(Fullbright.class).getLuminance(), original);
     }
 
     @Override

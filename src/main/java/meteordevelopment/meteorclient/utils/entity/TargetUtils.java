@@ -63,7 +63,7 @@ public class TargetUtils {
 
     public static boolean isBadTarget(PlayerEntity target, double range) {
         if (target == null) return true;
-        return PlayerUtils.isWithin(target, range) || !target.isAlive() || target.isDead() || target.getHealth() <= 0;
+        return !PlayerUtils.isWithin(target, range) || !target.isAlive() || target.isDead() || target.getHealth() <= 0;
     }
 
     private static int sort(Entity e1, Entity e2, SortPriority priority) {
@@ -101,6 +101,6 @@ public class TargetUtils {
         double e1pitch = Math.abs(Rotations.getPitch(e1) - mc.player.getPitch());
         double e2pitch = Math.abs(Rotations.getPitch(e2) - mc.player.getPitch());
 
-        return Double.compare(Math.sqrt(e1yaw * e1yaw + e1pitch * e1pitch), Math.sqrt(e2yaw * e2yaw + e2pitch * e2pitch));
+        return Double.compare(e1yaw * e1yaw + e1pitch * e1pitch, e2yaw * e2yaw + e2pitch * e2pitch);
     }
 }

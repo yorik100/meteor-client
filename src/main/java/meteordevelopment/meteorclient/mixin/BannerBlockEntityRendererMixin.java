@@ -18,7 +18,7 @@ import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.block.entity.BannerBlockEntityRenderer;
 import net.minecraft.client.render.model.ModelLoader;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.math.Vec3f;
+import net.minecraft.util.math.RotationAxis;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -34,7 +34,7 @@ public class BannerBlockEntityRendererMixin {
     @Final
     @Shadow private ModelPart crossbar;
 
-    @Inject(method = "render", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "render(Lnet/minecraft/block/entity/BannerBlockEntity;FLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;II)V", at = @At("HEAD"), cancellable = true)
     private void render(BannerBlockEntity bannerBlockEntity, float f, MatrixStack matrixStack, VertexConsumerProvider vertexConsumerProvider, int i, int j, CallbackInfo ci) {
         if (bannerBlockEntity.getWorld() != null) { //Don't modify banners in item form
             NoRender.BannerRenderMode renderMode = Modules.get().get(NoRender.class).getBannerRenderMode();
@@ -61,7 +61,7 @@ public class BannerBlockEntityRendererMixin {
         BlockState blockState = bannerBlockEntity.getCachedState();
         matrixStack.translate(0.5D, 0.5D, 0.5D);
         float h = (float)(-(Integer)blockState.get(BannerBlock.ROTATION) * 360) / 16.0F;
-        matrixStack.multiply(Vec3f.POSITIVE_Y.getDegreesQuaternion(h));
+        matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(h));
         matrixStack.push();
         matrixStack.scale(0.6666667F, -0.6666667F, -0.6666667F);
         VertexConsumer vertexConsumer = ModelLoader.BANNER_BASE.getVertexConsumer(vertexConsumerProvider, RenderLayer::getEntitySolid);
@@ -75,7 +75,7 @@ public class BannerBlockEntityRendererMixin {
         BlockState blockState = bannerBlockEntity.getCachedState();
         matrixStack.translate(0.5D, -0.1666666716337204D, 0.5D);
         float h = -blockState.get(WallBannerBlock.FACING).asRotation();
-        matrixStack.multiply(Vec3f.POSITIVE_Y.getDegreesQuaternion(h));
+        matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(h));
         matrixStack.translate(0.0D, -0.3125D, -0.4375D);
         matrixStack.push();
         matrixStack.scale(0.6666667F, -0.6666667F, -0.6666667F);

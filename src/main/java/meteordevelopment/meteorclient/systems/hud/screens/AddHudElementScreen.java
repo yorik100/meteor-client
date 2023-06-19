@@ -17,6 +17,7 @@ import meteordevelopment.meteorclient.systems.hud.Hud;
 import meteordevelopment.meteorclient.systems.hud.HudElementInfo;
 import meteordevelopment.meteorclient.systems.hud.HudGroup;
 import meteordevelopment.meteorclient.utils.Utils;
+import net.minecraft.client.gui.DrawContext;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -62,14 +63,10 @@ public class AddHudElementScreen extends WindowScreen {
             if (info.hasPresets() && !searchBar.get().isEmpty()) {
                 for (HudElementInfo<?>.Preset preset : info.presets) {
                     String title = info.title + "  -  " + preset.title;
-                    int words = Utils.search(title, searchBar.get());
-                    if (words > 0) grouped.computeIfAbsent(info.group, hudGroup -> new ArrayList<>()).add(new Item(title, info.description, preset));
+                    if (Utils.searchTextDefault(title, searchBar.get(), false)) grouped.computeIfAbsent(info.group, hudGroup -> new ArrayList<>()).add(new Item(title, info.description, preset));
                 }
             }
-            else {
-                int words = Utils.search(info.title, searchBar.get());
-                if (words > 0) grouped.computeIfAbsent(info.group, hudGroup -> new ArrayList<>()).add(new Item(info.title, info.description, info));
-            }
+            else if (Utils.searchTextDefault(info.title, searchBar.get(), false)) grouped.computeIfAbsent(info.group, hudGroup -> new ArrayList<>()).add(new Item(info.title, info.description, info));
         }
 
         // Create widgets
@@ -128,8 +125,8 @@ public class AddHudElementScreen extends WindowScreen {
     }
 
     @Override
-    protected void onRenderBefore(float delta) {
-        HudEditorScreen.renderElements();
+    protected void onRenderBefore(DrawContext drawContext, float delta) {
+        HudEditorScreen.renderElements(drawContext);
     }
 
     private record Item(String title, String description, Object object) {}

@@ -6,7 +6,7 @@
 package meteordevelopment.meteorclient.utils;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import it.unimi.dsi.fastutil.objects.Object2BooleanOpenHashMap;
+import com.mojang.blaze3d.systems.VertexSorter;
 import it.unimi.dsi.fastutil.objects.Object2IntArrayMap;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import meteordevelopment.meteorclient.MeteorClient;
@@ -33,28 +33,31 @@ import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
 import net.minecraft.client.gui.screen.world.SelectWorldScreen;
 import net.minecraft.client.resource.ResourceReloadLogger;
 import net.minecraft.enchantment.Enchantment;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.effect.StatusEffect;
 import net.minecraft.item.*;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
+import net.minecraft.registry.Registries;
 import net.minecraft.util.DyeColor;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Matrix4f;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.registry.Registry;
 import net.minecraft.world.chunk.Chunk;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.SystemUtils;
 import org.jetbrains.annotations.Range;
+import org.joml.Matrix4f;
+import org.joml.Vector3d;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static meteordevelopment.meteorclient.MeteorClient.mc;
@@ -68,6 +71,9 @@ public class Utils {
     public static boolean rendering3D = true;
     public static double frameTime;
     public static Screen screenToOpen;
+    public static VertexSorter vertexSorter;
+
+    public static final Pattern FILE_NAME_INVALID_CHARS_PATTERN = Pattern.compile("[\\s\\\\/:*?\"<>|]");
 
     @PreInit
     public static void init() {
@@ -82,17 +88,25 @@ public class Utils {
         }
     }
 
-    public static double getPlayerSpeed() {
-        if (mc.player == null) return 0;
+    public static Vec3d getPlayerSpeed() {
+        if (mc.player == null) return Vec3d.ZERO;
 
-        double tX = Math.abs(mc.player.getX() - mc.player.prevX);
-        double tZ = Math.abs(mc.player.getZ() - mc.player.prevZ);
-        double length = Math.sqrt(tX * tX + tZ * tZ);
+        double tX = mc.player.getX() - mc.player.prevX;
+        double tY = mc.player.getY() - mc.player.prevY;
+        double tZ = mc.player.getZ() - mc.player.prevZ;
 
         Timer timer = Modules.get().get(Timer.class);
-        if (timer.isActive()) length *= Modules.get().get(Timer.class).getMultiplier();
+        if (timer.isActive()) {
+            tX *= timer.getMultiplier();
+            tY *= timer.getMultiplier();
+            tZ *= timer.getMultiplier();
+        }
 
-        return length * 20;
+        tX *= 20;
+        tY *= 20;
+        tZ *= 20;
+
+        return new Vec3d(tX, tY, tZ);
     }
 
     public static String getWorldTime() {
@@ -126,7 +140,7 @@ public class Utils {
             for (int i = 0; i < listTag.size(); ++i) {
                 NbtCompound tag = listTag.getCompound(i);
 
-                Registry.ENCHANTMENT.getOrEmpty(Identifier.tryParse(tag.getString("id"))).ifPresent((enchantment) -> enchantments.put(enchantment, tag.getInt("lvl")));
+                Registries.ENCHANTMENT.getOrEmpty(Identifier.tryParse(tag.getString("id"))).ifPresent((enchantment) -> enchantments.put(enchantment, tag.getInt("lvl")));
             }
         }
     }
@@ -154,12 +168,13 @@ public class Utils {
     }
 
     public static void unscaledProjection() {
-        RenderSystem.setProjectionMatrix(Matrix4f.projectionMatrix(0, mc.getWindow().getFramebufferWidth(), 0, mc.getWindow().getFramebufferHeight(), 1000, 3000));
+        vertexSorter = RenderSystem.getVertexSorting();
+        RenderSystem.setProjectionMatrix(new Matrix4f().setOrtho(0, mc.getWindow().getFramebufferWidth(), mc.getWindow().getFramebufferHeight(), 0, 1000, 21000), VertexSorter.BY_Z);
         rendering3D = false;
     }
 
     public static void scaledProjection() {
-        RenderSystem.setProjectionMatrix(Matrix4f.projectionMatrix(0, (float) (mc.getWindow().getFramebufferWidth() / mc.getWindow().getScaleFactor()), 0, (float) (mc.getWindow().getFramebufferHeight() / mc.getWindow().getScaleFactor()), 1000, 3000));
+        RenderSystem.setProjectionMatrix(new Matrix4f().setOrtho(0, (float) (mc.getWindow().getFramebufferWidth() / mc.getWindow().getScaleFactor()), (float) (mc.getWindow().getFramebufferHeight() / mc.getWindow().getScaleFactor()), 0, 1000, 21000), vertexSorter);
         rendering3D = true;
     }
 
@@ -205,15 +220,17 @@ public class Utils {
     }
 
     public static Color getShulkerColor(ItemStack shulkerItem) {
-        if (!(shulkerItem.getItem() instanceof BlockItem)) return WHITE;
-        Block block = ((BlockItem) shulkerItem.getItem()).getBlock();
-        if (block == Blocks.ENDER_CHEST) return BetterTooltips.ECHEST_COLOR;
-        if (!(block instanceof ShulkerBoxBlock)) return WHITE;
-        ShulkerBoxBlock shulkerBlock = (ShulkerBoxBlock) ShulkerBoxBlock.getBlockFromItem(shulkerItem.getItem());
-        DyeColor dye = shulkerBlock.getColor();
-        if (dye == null) return WHITE;
-        final float[] colors = dye.getColorComponents();
-        return new Color(colors[0], colors[1], colors[2], 1f);
+        if (shulkerItem.getItem() instanceof BlockItem blockItem) {
+            Block block = blockItem.getBlock();
+            if (block == Blocks.ENDER_CHEST) return BetterTooltips.ECHEST_COLOR;
+            if (block instanceof ShulkerBoxBlock shulkerBlock) {
+                DyeColor dye = shulkerBlock.getColor();
+                if (dye == null) return WHITE;
+                final float[] colors = dye.getColorComponents();
+                return new Color(colors[0], colors[1], colors[2], 1f);
+            }
+        }
+        return WHITE;
     }
 
     public static boolean hasItems(ItemStack itemStack) {
@@ -222,9 +239,9 @@ public class Utils {
     }
 
     public static Object2IntMap<StatusEffect> createStatusEffectMap() {
-        Object2IntMap<StatusEffect> map = new Object2IntArrayMap<>(Registry.STATUS_EFFECT.getIds().size());
+        Object2IntMap<StatusEffect> map = new Object2IntArrayMap<>(Registries.STATUS_EFFECT.getIds().size());
 
-        Registry.STATUS_EFFECT.forEach(potion -> map.put(potion, 0));
+        Registries.STATUS_EFFECT.forEach(potion -> map.put(potion, 0));
 
         return map;
     }
@@ -233,7 +250,15 @@ public class Utils {
         return enchantment.getName(0).getString().substring(0, length);
     }
 
-    public static int search(String text, String filter) {
+    public static boolean searchTextDefault(String text, String filter, boolean caseSensitive) {
+        return searchInWords(text, filter) > 0 || searchLevenshteinDefault(text, filter, caseSensitive) < text.length() / 2;
+    }
+
+    public static int searchLevenshteinDefault(String text, String filter, boolean caseSensitive) {
+        return levenshteinDistance(caseSensitive ? filter : filter.toLowerCase(Locale.ROOT), caseSensitive ? text : text.toLowerCase(Locale.ROOT), 1, 8, 8);
+    }
+
+    public static int searchInWords(String text, String filter) {
         if (filter.isEmpty()) return 1;
 
         int wordsFound = 0;
@@ -246,6 +271,37 @@ public class Utils {
         }
 
         return wordsFound;
+    }
+
+    public static int levenshteinDistance(String from, String to, int insCost, int subCost, int delCost) {
+        int textLength = from.length();
+        int filterLength = to.length();
+
+        if (textLength == 0) return filterLength * insCost;
+        if (filterLength == 0) return textLength * delCost;
+
+        // Populate matrix
+        int[][] d = new int[textLength + 1][filterLength + 1];
+
+        for (int i = 0; i <= textLength; i++) {
+            d[i][0] = i * delCost;
+        }
+
+        for (int j = 0; j <= filterLength; j++) {
+            d[0][j] = j * insCost;
+        }
+
+        // Find best route
+        for (int i = 1; i <= textLength; i++) {
+            for (int j = 1; j <= filterLength; j++) {
+                int sCost = d[i-1][j-1] + (from.charAt(i-1) == to.charAt(j-1) ? 0 : subCost);
+                int dCost = d[i-1][j] + delCost;
+                int iCost = d[i][j-1] + insCost;
+                d[i][j] = Math.min(Math.min(dCost, iCost), sCost);
+            }
+        }
+
+        return d[textLength][filterLength];
     }
 
     public static double squaredDistance(double x1, double y1, double z1, double x2, double y2, double z2) {
@@ -262,6 +318,10 @@ public class Utils {
         return Math.sqrt(dX * dX + dY * dY + dZ * dZ);
     }
 
+    public static String getFileWorldName() {
+        return FILE_NAME_INVALID_CHARS_PATTERN.matcher(getWorldName()).replaceAll("_");
+    }
+
     public static String getWorldName() {
         // Singleplayer
         if (mc.isInSingleplayer()) {
@@ -276,11 +336,7 @@ public class Utils {
 
         // Multiplayer
         if (mc.getCurrentServerEntry() != null) {
-            String name = mc.isConnectedToRealms() ? "realms" : mc.getCurrentServerEntry().address;
-            if (SystemUtils.IS_OS_WINDOWS) {
-                name = name.replace(":", "_");
-            }
-            return name;
+            return mc.isConnectedToRealms() ? "realms" : mc.getCurrentServerEntry().address;
         }
 
         return "";
@@ -295,71 +351,71 @@ public class Utils {
     }
 
     public static String getKeyName(int key) {
-        switch (key) {
-            case GLFW_KEY_UNKNOWN: return "Unknown";
-            case GLFW_KEY_ESCAPE: return "Esc";
-            case GLFW_KEY_GRAVE_ACCENT: return "Grave Accent";
-            case GLFW_KEY_WORLD_1: return "World 1";
-            case GLFW_KEY_WORLD_2: return "World 2";
-            case GLFW_KEY_PRINT_SCREEN: return "Print Screen";
-            case GLFW_KEY_PAUSE: return "Pause";
-            case GLFW_KEY_INSERT: return "Insert";
-            case GLFW_KEY_DELETE: return "Delete";
-            case GLFW_KEY_HOME: return "Home";
-            case GLFW_KEY_PAGE_UP: return "Page Up";
-            case GLFW_KEY_PAGE_DOWN: return "Page Down";
-            case GLFW_KEY_END: return "End";
-            case GLFW_KEY_TAB: return "Tab";
-            case GLFW_KEY_LEFT_CONTROL: return "Left Control";
-            case GLFW_KEY_RIGHT_CONTROL: return "Right Control";
-            case GLFW_KEY_LEFT_ALT: return "Left Alt";
-            case GLFW_KEY_RIGHT_ALT: return "Right Alt";
-            case GLFW_KEY_LEFT_SHIFT: return "Left Shift";
-            case GLFW_KEY_RIGHT_SHIFT: return "Right Shift";
-            case GLFW_KEY_UP: return "Arrow Up";
-            case GLFW_KEY_DOWN: return "Arrow Down";
-            case GLFW_KEY_LEFT: return "Arrow Left";
-            case GLFW_KEY_RIGHT: return "Arrow Right";
-            case GLFW_KEY_APOSTROPHE: return "Apostrophe";
-            case GLFW_KEY_BACKSPACE: return "Backspace";
-            case GLFW_KEY_CAPS_LOCK: return "Caps Lock";
-            case GLFW_KEY_MENU: return "Menu";
-            case GLFW_KEY_LEFT_SUPER: return "Left Super";
-            case GLFW_KEY_RIGHT_SUPER: return "Right Super";
-            case GLFW_KEY_ENTER: return "Enter";
-            case GLFW_KEY_KP_ENTER: return "Numpad Enter";
-            case GLFW_KEY_NUM_LOCK: return "Num Lock";
-            case GLFW_KEY_SPACE: return "Space";
-            case GLFW_KEY_F1: return "F1";
-            case GLFW_KEY_F2: return "F2";
-            case GLFW_KEY_F3: return "F3";
-            case GLFW_KEY_F4: return "F4";
-            case GLFW_KEY_F5: return "F5";
-            case GLFW_KEY_F6: return "F6";
-            case GLFW_KEY_F7: return "F7";
-            case GLFW_KEY_F8: return "F8";
-            case GLFW_KEY_F9: return "F9";
-            case GLFW_KEY_F10: return "F10";
-            case GLFW_KEY_F11: return "F11";
-            case GLFW_KEY_F12: return "F12";
-            case GLFW_KEY_F13: return "F13";
-            case GLFW_KEY_F14: return "F14";
-            case GLFW_KEY_F15: return "F15";
-            case GLFW_KEY_F16: return "F16";
-            case GLFW_KEY_F17: return "F17";
-            case GLFW_KEY_F18: return "F18";
-            case GLFW_KEY_F19: return "F19";
-            case GLFW_KEY_F20: return "F20";
-            case GLFW_KEY_F21: return "F21";
-            case GLFW_KEY_F22: return "F22";
-            case GLFW_KEY_F23: return "F23";
-            case GLFW_KEY_F24: return "F24";
-            case GLFW_KEY_F25: return "F25";
-            default:
+        return switch (key) {
+            case GLFW_KEY_UNKNOWN -> "Unknown";
+            case GLFW_KEY_ESCAPE -> "Esc";
+            case GLFW_KEY_GRAVE_ACCENT -> "Grave Accent";
+            case GLFW_KEY_WORLD_1 -> "World 1";
+            case GLFW_KEY_WORLD_2 -> "World 2";
+            case GLFW_KEY_PRINT_SCREEN -> "Print Screen";
+            case GLFW_KEY_PAUSE -> "Pause";
+            case GLFW_KEY_INSERT -> "Insert";
+            case GLFW_KEY_DELETE -> "Delete";
+            case GLFW_KEY_HOME -> "Home";
+            case GLFW_KEY_PAGE_UP -> "Page Up";
+            case GLFW_KEY_PAGE_DOWN -> "Page Down";
+            case GLFW_KEY_END -> "End";
+            case GLFW_KEY_TAB -> "Tab";
+            case GLFW_KEY_LEFT_CONTROL -> "Left Control";
+            case GLFW_KEY_RIGHT_CONTROL -> "Right Control";
+            case GLFW_KEY_LEFT_ALT -> "Left Alt";
+            case GLFW_KEY_RIGHT_ALT -> "Right Alt";
+            case GLFW_KEY_LEFT_SHIFT -> "Left Shift";
+            case GLFW_KEY_RIGHT_SHIFT -> "Right Shift";
+            case GLFW_KEY_UP -> "Arrow Up";
+            case GLFW_KEY_DOWN -> "Arrow Down";
+            case GLFW_KEY_LEFT -> "Arrow Left";
+            case GLFW_KEY_RIGHT -> "Arrow Right";
+            case GLFW_KEY_APOSTROPHE -> "Apostrophe";
+            case GLFW_KEY_BACKSPACE -> "Backspace";
+            case GLFW_KEY_CAPS_LOCK -> "Caps Lock";
+            case GLFW_KEY_MENU -> "Menu";
+            case GLFW_KEY_LEFT_SUPER -> "Left Super";
+            case GLFW_KEY_RIGHT_SUPER -> "Right Super";
+            case GLFW_KEY_ENTER -> "Enter";
+            case GLFW_KEY_KP_ENTER -> "Numpad Enter";
+            case GLFW_KEY_NUM_LOCK -> "Num Lock";
+            case GLFW_KEY_SPACE -> "Space";
+            case GLFW_KEY_F1 -> "F1";
+            case GLFW_KEY_F2 -> "F2";
+            case GLFW_KEY_F3 -> "F3";
+            case GLFW_KEY_F4 -> "F4";
+            case GLFW_KEY_F5 -> "F5";
+            case GLFW_KEY_F6 -> "F6";
+            case GLFW_KEY_F7 -> "F7";
+            case GLFW_KEY_F8 -> "F8";
+            case GLFW_KEY_F9 -> "F9";
+            case GLFW_KEY_F10 -> "F10";
+            case GLFW_KEY_F11 -> "F11";
+            case GLFW_KEY_F12 -> "F12";
+            case GLFW_KEY_F13 -> "F13";
+            case GLFW_KEY_F14 -> "F14";
+            case GLFW_KEY_F15 -> "F15";
+            case GLFW_KEY_F16 -> "F16";
+            case GLFW_KEY_F17 -> "F17";
+            case GLFW_KEY_F18 -> "F18";
+            case GLFW_KEY_F19 -> "F19";
+            case GLFW_KEY_F20 -> "F20";
+            case GLFW_KEY_F21 -> "F21";
+            case GLFW_KEY_F22 -> "F22";
+            case GLFW_KEY_F23 -> "F23";
+            case GLFW_KEY_F24 -> "F24";
+            case GLFW_KEY_F25 -> "F25";
+            default -> {
                 String keyName = glfwGetKeyName(key, 0);
-                if (keyName == null) return "Unknown";
-                return StringUtils.capitalize(keyName);
-        }
+                yield keyName == null ? "Unknown" : StringUtils.capitalize(keyName);
+            }
+        };
     }
 
     public static String getButtonName(int button) {
@@ -429,21 +485,6 @@ public class Utils {
         return item instanceof ExperienceBottleItem || item instanceof BowItem || item instanceof CrossbowItem || item instanceof SnowballItem || item instanceof EggItem || item instanceof EnderPearlItem || item instanceof SplashPotionItem || item instanceof LingeringPotionItem || item instanceof FishingRodItem || item instanceof TridentItem;
     }
 
-    public static int clamp(int value, int min, int max) {
-        if (value < min) return min;
-        return Math.min(value, max);
-    }
-
-    public static float clamp(float value, float min, float max) {
-        if (value < min) return min;
-        return Math.min(value, max);
-    }
-
-    public static double clamp(double value, double min, double max) {
-        if (value < min) return min;
-        return Math.min(value, max);
-    }
-
     public static void addEnchantment(ItemStack itemStack, Enchantment enchantment, int level) {
         NbtCompound tag = itemStack.getOrCreateNbt();
         NbtList listTag;
@@ -457,7 +498,7 @@ public class Utils {
         }
 
         // Check if item already has the enchantment and modify the level
-        String enchId = Registry.ENCHANTMENT.getId(enchantment).toString();
+        String enchId = Registries.ENCHANTMENT.getId(enchantment).toString();
 
         for (NbtElement _t : listTag) {
             NbtCompound t = (NbtCompound) _t;
@@ -488,7 +529,7 @@ public class Utils {
         if (!nbt.contains("Enchantments", 9)) return;
         NbtList list = nbt.getList("Enchantments", 10);
 
-        String enchId = Registry.ENCHANTMENT.getId(enchantment).toString();
+        String enchId = Registries.ENCHANTMENT.getId(enchantment).toString();
 
         for (Iterator<NbtElement> it = list.iterator(); it.hasNext();) {
             NbtCompound ench = (NbtCompound) it.next();
@@ -498,14 +539,6 @@ public class Utils {
                 break;
             }
         }
-    }
-
-    @SafeVarargs
-    public static <T> Object2BooleanOpenHashMap<T> asO2BMap(T... checked) {
-        Map<T, Boolean> map = new HashMap<>();
-        for (T item : checked)
-            map.put(item, true);
-        return new Object2BooleanOpenHashMap<>(map);
     }
 
     public static Color lerp(Color first, Color second, @Range(from = 0, to = 1) float v) {
@@ -555,6 +588,22 @@ public class Utils {
         if (port <= 0 || port > 65535 || address == null || address.isBlank()) return false;
         InetSocketAddress socketAddress = new InetSocketAddress(address, port);
         return !socketAddress.isUnresolved();
+    }
+
+    public static Vector3d set(Vector3d vec, Vec3d v) {
+        vec.x = v.x;
+        vec.y = v.y;
+        vec.z = v.z;
+
+        return vec;
+    }
+
+    public static Vector3d set(Vector3d vec, Entity entity, double tickDelta) {
+        vec.x = MathHelper.lerp(tickDelta, entity.lastRenderX, entity.getX());
+        vec.y = MathHelper.lerp(tickDelta, entity.lastRenderY, entity.getY());
+        vec.z = MathHelper.lerp(tickDelta, entity.lastRenderZ, entity.getZ());
+
+        return vec;
     }
 
     // Filters

@@ -9,12 +9,11 @@ import meteordevelopment.meteorclient.events.world.TickEvent;
 import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.systems.modules.Categories;
 import meteordevelopment.meteorclient.systems.modules.Module;
-import meteordevelopment.meteorclient.gui.WidgetScreen;
 import meteordevelopment.meteorclient.utils.Utils;
 import meteordevelopment.meteorclient.utils.misc.input.Input;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.util.hit.HitResult;
 import meteordevelopment.orbit.EventHandler;
+import net.minecraft.util.hit.HitResult;
+import net.minecraft.client.MinecraftClient;
 
 public class AutoClicker extends Module {
 	private static MinecraftClient client = MinecraftClient.getInstance();
@@ -114,12 +113,12 @@ public class AutoClicker extends Module {
             case Press -> {
 				if (leftClickTimer <= 500) leftClickTimer++;
 				if (mc.currentScreen != null) break;
-				if (breakBlocks.get() && (client.crosshairTarget.getType() == HitResult.Type.BLOCK) && Input.isPressed2(mc.options.attackKey)) {
+				if (breakBlocks.get() && (client.crosshairTarget.getType() == HitResult.Type.BLOCK) && Input.isPressedMouse(mc.options.attackKey)) {
 					mc.options.attackKey.setPressed(true);
 					leftClickTimer = 0;
 					break;
 				}
-                if ((!onlyWhenHoldingLeftClick.get() || Input.isPressed2(mc.options.attackKey)) && (!breakBlocks.get() || (client.crosshairTarget.getType() != HitResult.Type.BLOCK)) && (smartDelay.get() ? mc.player.getAttackCooldownProgress(0.5f) >= 1 : leftClickTimer > leftClickDelay.get())) {
+                if ((!onlyWhenHoldingLeftClick.get() || Input.isPressedMouse(mc.options.attackKey)) && (!breakBlocks.get() || (client.crosshairTarget.getType() != HitResult.Type.BLOCK)) && (smartDelay.get() ? mc.player.getAttackCooldownProgress(0.5f) >= 1 : leftClickTimer > leftClickDelay.get())) {
                     Utils.leftClick();
                     leftClickTimer = 0;
                 }
@@ -130,7 +129,7 @@ public class AutoClicker extends Module {
             case Hold -> mc.options.useKey.setPressed(true);
             case Press -> {
                 if (rightClickTimer <= 500) rightClickTimer++;
-                if ((!onlyWhenHoldingRightClick.get() || Input.isPressed2(mc.options.useKey)) && rightClickTimer > rightClickDelay.get()) {
+                if ((!onlyWhenHoldingRightClick.get() || Input.isPressedMouse(mc.options.useKey)) && rightClickTimer > rightClickDelay.get()) {
                     Utils.rightClick();
                     rightClickTimer = 0;
                 }

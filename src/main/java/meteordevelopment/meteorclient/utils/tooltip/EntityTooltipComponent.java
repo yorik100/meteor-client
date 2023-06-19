@@ -6,18 +6,18 @@
 package meteordevelopment.meteorclient.utils.tooltip;
 
 import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.tooltip.TooltipComponent;
 import net.minecraft.client.render.DiffuseLighting;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.entity.EntityRenderDispatcher;
-import net.minecraft.client.render.item.ItemRenderer;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.passive.GoatEntity;
 import net.minecraft.entity.passive.SquidEntity;
-import net.minecraft.util.math.Quaternion;
-import net.minecraft.util.math.Vec3f;
+import net.minecraft.util.math.RotationAxis;
+import org.joml.Quaternionf;
 
 import static meteordevelopment.meteorclient.MeteorClient.mc;
 
@@ -46,11 +46,12 @@ public class EntityTooltipComponent implements MeteorTooltipData, TooltipCompone
     }
 
     @Override
-    public void drawItems(TextRenderer textRenderer, int x, int y, MatrixStack matrices, ItemRenderer itemRenderer, int z) {
+    public void drawItems(TextRenderer textRenderer, int x, int y, DrawContext context) {
+        MatrixStack matrices = context.getMatrices();
         matrices.push();
-        matrices.translate(15, 2, z);
-        this.entity.setVelocity(1.f, 1.f, 1.f);
-        this.renderEntity(matrices, x, y);
+        matrices.translate(15, 2, 0);
+        entity.setVelocity(1.f, 1.f, 1.f);
+        renderEntity(matrices, x, y);
         matrices.pop();
     }
 
@@ -73,9 +74,9 @@ public class EntityTooltipComponent implements MeteorTooltipData, TooltipCompone
         matrices.scale(1f, 1f, -1);
         matrices.translate(0, 0, 1000);
         matrices.scale(size, size, size);
-        Quaternion quaternion = Vec3f.POSITIVE_Z.getDegreesQuaternion(180.f);
-        Quaternion quaternion2 = Vec3f.POSITIVE_X.getDegreesQuaternion(-10.f);
-        quaternion.hamiltonProduct(quaternion2);
+        Quaternionf quaternion = RotationAxis.POSITIVE_Z.rotationDegrees(180.f);
+        Quaternionf quaternion2 = RotationAxis.POSITIVE_X.rotationDegrees(-10.f);
+        hamiltonProduct(quaternion, quaternion2);
         matrices.multiply(quaternion);
         setupAngles();
         EntityRenderDispatcher entityRenderDispatcher = mc.getEntityRenderDispatcher();
@@ -92,14 +93,29 @@ public class EntityTooltipComponent implements MeteorTooltipData, TooltipCompone
         DiffuseLighting.enableGuiDepthLighting();
     }
 
+    public void hamiltonProduct(Quaternionf q, Quaternionf other) {
+        float f = q.x();
+        float g = q.y();
+        float h = q.z();
+        float i = q.w();
+        float j = other.x();
+        float k = other.y();
+        float l = other.z();
+        float m = other.w();
+        q.x = (((i * j) + (f * m)) + (g * l)) - (h * k);
+        q.y = ((i * k) - (f * l)) + (g * m) + (h * j);
+        q.z = (((i * l) + (f * k)) - (g * j)) + (h * m);
+        q.w = (((i * m) - (f * j)) - (g * k)) - (h * l);
+    }
+
     protected void setupAngles() {
-        float yaw = (float) (((System.currentTimeMillis() / 10)) % 360);
+        float yaw = (((float) System.currentTimeMillis() / 10) % 360);
         entity.setYaw(yaw);
         entity.setHeadYaw(yaw);
         entity.setPitch(0.f);
-        if (entity instanceof LivingEntity) {
-            if (entity instanceof GoatEntity) ((LivingEntity) entity).headYaw = yaw;
-            ((LivingEntity) entity).bodyYaw = yaw;
+        if (entity instanceof LivingEntity livingEntity) {
+            if (entity instanceof GoatEntity) livingEntity.headYaw = yaw;
+            livingEntity.bodyYaw = yaw;
         }
     }
 }

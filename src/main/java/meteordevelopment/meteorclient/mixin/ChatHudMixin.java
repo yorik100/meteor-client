@@ -5,6 +5,7 @@
 
 package meteordevelopment.meteorclient.mixin;
 
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.mojang.blaze3d.systems.RenderSystem;
 import meteordevelopment.meteorclient.MeteorClient;
 import meteordevelopment.meteorclient.events.game.ReceiveMessageEvent;
@@ -16,7 +17,7 @@ import meteordevelopment.meteorclient.systems.modules.render.NoRender;
 import meteordevelopment.meteorclient.utils.misc.MeteorIdentifier;
 import meteordevelopment.meteorclient.utils.misc.text.StringCharacterVisitor;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawableHelper;
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.hud.ChatHud;
 import net.minecraft.client.gui.hud.ChatHudLine;
 import net.minecraft.client.gui.hud.MessageIndicator;
@@ -27,6 +28,7 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.network.message.MessageSignatureData;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.MathHelper;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -34,7 +36,6 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.Slice;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
@@ -77,32 +78,32 @@ public abstract class ChatHudMixin implements IChatHud {
     private void onAddMessage(Text message, @Nullable MessageSignatureData signature, int ticks, @Nullable MessageIndicator indicator, boolean refresh, CallbackInfo info) {
         if (skipOnAddMessage) return;
 
-        ReceiveMessageEvent event = MeteorClient.EVENT_BUS.post(ReceiveMessageEvent.get(message, nextId));
+        ReceiveMessageEvent event = MeteorClient.EVENT_BUS.post(ReceiveMessageEvent.get(message, indicator, nextId));
 
         if (event.isCancelled()) info.cancel();
         else {
-            visibleMessages.removeIf((msg) -> ((IChatHudLine) (Object) msg).getId() == nextId && nextId != 0);
-            messages.removeIf((msg) -> ((IChatHudLine) (Object) msg).getId() == nextId && nextId != 0);
+            visibleMessages.removeIf(msg -> ((IChatHudLine) (Object) msg).getId() == nextId && nextId != 0);
+            messages.removeIf(msg -> ((IChatHudLine) (Object) msg).getId() == nextId && nextId != 0);
 
             if (event.isModified()) {
                 info.cancel();
 
                 skipOnAddMessage = true;
-                addMessage(event.getMessage(), signature, ticks, indicator, refresh);
+                addMessage(event.getMessage(), signature, ticks, event.getIndicator(), refresh);
                 skipOnAddMessage = false;
             }
         }
     }
 
-    @Redirect(method = "addMessage(Lnet/minecraft/text/Text;Lnet/minecraft/network/message/MessageSignatureData;ILnet/minecraft/client/gui/hud/MessageIndicator;Z)V", slice = @Slice(from = @At(value = "FIELD", target = "Lnet/minecraft/client/gui/hud/ChatHud;visibleMessages:Ljava/util/List;")), at = @At(value = "INVOKE", target = "Ljava/util/List;size()I"))
-    private int addMessageListSizeProxy(List<ChatHudLine> list) {
+    @ModifyExpressionValue(method = "addMessage(Lnet/minecraft/text/Text;Lnet/minecraft/network/message/MessageSignatureData;ILnet/minecraft/client/gui/hud/MessageIndicator;Z)V", slice = @Slice(from = @At(value = "FIELD", target = "Lnet/minecraft/client/gui/hud/ChatHud;visibleMessages:Ljava/util/List;")), at = @At(value = "INVOKE", target = "Ljava/util/List;size()I"))
+    private int addMessageListSizeProxy(int size) {
         BetterChat betterChat = Modules.get().get(BetterChat.class);
-        if (betterChat.isLongerChat() && betterChat.getChatLength() >= 100) return list.size() - betterChat.getChatLength();
-        return list.size();
+        if (betterChat.isLongerChat() && betterChat.getChatLength() >= 100) return size - betterChat.getChatLength();
+        return size;
     }
 
     @Inject(method = "render", at = @At("TAIL"))
-    private void onRender(MatrixStack matrices, int tickDelta, CallbackInfo ci) {
+    private void onRender(DrawContext context, int currentTick, int mouseX, int mouseY, CallbackInfo ci) {
         if (!Modules.get().get(BetterChat.class).displayPlayerHeads()) return;
         if (mc.options.getChatVisibility().getValue() == ChatVisibility.HIDDEN) return;
         int maxLineCount = mc.inGameHud.getChatHud().getVisibleLineCount();
@@ -111,20 +112,25 @@ public abstract class ChatHudMixin implements IChatHud {
         double g = 9.0D * (mc.options.getChatLineSpacing().getValue() + 1.0D);
         double h = -8.0D * (mc.options.getChatLineSpacing().getValue() + 1.0D) + 4.0D * mc.options.getChatLineSpacing().getValue() + 8.0D;
 
+        float chatScale = (float) getChatScale();
+        float scaledHeight = mc.getWindow().getScaledHeight();
+
+        MatrixStack matrices = context.getMatrices();
         matrices.push();
-        matrices.translate(2, -0.1f, 10);
+        matrices.scale(chatScale, chatScale, 1.0f);
+        matrices.translate(2.0f, MathHelper.floor((scaledHeight - 40) / chatScale) - g - 0.1f, 10.0f);
         RenderSystem.enableBlend();
-        for(int m = 0; m + this.scrolledLines < this.visibleMessages.size() && m < maxLineCount; ++m) {
-            ChatHudLine.Visible chatHudLine = this.visibleMessages.get(m + this.scrolledLines);
+        for (int m = 0; m + scrolledLines < visibleMessages.size() && m < maxLineCount; ++m) {
+            ChatHudLine.Visible chatHudLine = visibleMessages.get(m + scrolledLines);
             if (chatHudLine != null) {
-                int x = tickDelta - chatHudLine.addedTime();
+                int x = currentTick - chatHudLine.addedTime();
                 if (x < 200 || isChatFocused()) {
                     double o = isChatFocused() ? 1.0D : getMessageOpacityMultiplier(x);
                     if (o * d > 0.01D) {
-                        double s = ((double)(-m) * g);
+                        double s = -m * g;
                         StringCharacterVisitor visitor = new StringCharacterVisitor();
                         chatHudLine.content().accept(visitor);
-                        drawIcon(matrices, visitor.result.toString(), (int)(s + h), (float)(o * d));
+                        drawIcon(context, matrices, visitor.result.toString(), (int) (s + h), (float) (o * d));
                     }
                 }
             }
@@ -153,24 +159,25 @@ public abstract class ChatHudMixin implements IChatHud {
     @Final
     private List<ChatHudLine> messages;
 
-    private void drawIcon(MatrixStack matrices, String line, int y, float opacity) {
+    @Shadow
+    public abstract double getChatScale();
+
+    private void drawIcon(DrawContext drawContext, MatrixStack matrices, String line, int y, float opacity) {
         if (METEOR_PREFIX_REGEX.matcher(line).find()) {
-            RenderSystem.setShaderTexture(0, METEOR_CHAT_ICON);
             matrices.push();
             RenderSystem.setShaderColor(1, 1, 1, opacity);
             matrices.translate(0, y, 0);
             matrices.scale(0.125f, 0.125f, 1);
-            DrawableHelper.drawTexture(matrices, 0, 0, 0f, 0f, 64, 64, 64, 64);
+            drawContext.drawTexture(METEOR_CHAT_ICON, 0, 0, 0f, 0f, 64, 64, 64, 64);
             RenderSystem.setShaderColor(1, 1, 1, 1);
             matrices.pop();
             return;
         } else if (BARITONE_PREFIX_REGEX.matcher(line).find()) {
-            RenderSystem.setShaderTexture(0, BARITONE_CHAT_ICON);
             matrices.push();
             RenderSystem.setShaderColor(1, 1, 1, opacity);
             matrices.translate(0, y, 10);
             matrices.scale(0.125f, 0.125f, 1);
-            DrawableHelper.drawTexture(matrices, 0, 0, 0f, 0f, 64, 64, 64, 64);
+            drawContext.drawTexture(BARITONE_CHAT_ICON, 0, 0, 0f, 0f, 64, 64, 64, 64);
             RenderSystem.setShaderColor(1, 1, 1, 1);
             matrices.pop();
             return;
@@ -179,9 +186,8 @@ public abstract class ChatHudMixin implements IChatHud {
         Identifier skin = getMessageTexture(line);
         if (skin != null) {
             RenderSystem.setShaderColor(1, 1, 1, opacity);
-            RenderSystem.setShaderTexture(0, skin);
-            DrawableHelper.drawTexture(matrices, 0, y, 8, 8, 8.0F, 8.0F,8, 8, 64, 64);
-            DrawableHelper.drawTexture(matrices, 0, y, 8, 8, 40.0F, 8.0F,8, 8, 64, 64);
+            drawContext.drawTexture(skin, 0, y, 8, 8, 8.0F, 8.0F, 8, 8, 64, 64);
+            drawContext.drawTexture(skin, 0, y, 8, 8, 40.0F, 8.0F, 8, 8, 64, 64);
             RenderSystem.setShaderColor(1, 1, 1, 1);
         }
     }
@@ -200,8 +206,8 @@ public abstract class ChatHudMixin implements IChatHud {
 
     // No Message Signature Indicator
 
-    @Redirect(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/hud/ChatHudLine$Visible;indicator()Lnet/minecraft/client/gui/hud/MessageIndicator;"))
-    private MessageIndicator onMessageIndicator(ChatHudLine.Visible message) {
-        return Modules.get().get(NoRender.class).noMessageSignatureIndicator() ? null : message.indicator();
+    @ModifyExpressionValue(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/hud/ChatHudLine$Visible;indicator()Lnet/minecraft/client/gui/hud/MessageIndicator;"))
+    private MessageIndicator onRender_modifyIndicator(MessageIndicator indicator) {
+        return Modules.get().get(NoRender.class).noMessageSignatureIndicator() ? null : indicator;
     }
 }

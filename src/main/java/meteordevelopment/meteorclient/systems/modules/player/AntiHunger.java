@@ -21,24 +21,25 @@ public class AntiHunger extends Module {
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
 
     private final Setting<Boolean> sprint = sgGeneral.add(new BoolSetting.Builder()
-            .name("sprint")
-            .description("Spoofs sprinting packets.")
-            .defaultValue(true)
-            .build()
+        .name("sprint")
+        .description("Spoofs sprinting packets.")
+        .defaultValue(true)
+        .build()
     );
 
     private final Setting<Boolean> onGround = sgGeneral.add(new BoolSetting.Builder()
-            .name("on-ground")
-            .description("Spoofs the onGround flag.")
-            .defaultValue(true)
-            .build()
+        .name("on-ground")
+        .description("Spoofs the onGround flag.")
+        .defaultValue(true)
+        .build()
     );
 
     private final Setting<Boolean> waterCheck = sgGeneral.add(new BoolSetting.Builder()
-            .name("water-check")
-            .description("Pauses the module if you are in water")
-            .defaultValue(true)
-            .build());
+        .name("water-check")
+        .description("Pauses the module if you are in water")
+        .defaultValue(true)
+        .build()
+    );
 
     private boolean lastOnGround;
     private boolean sendOnGroundTruePacket;
@@ -52,8 +53,6 @@ public class AntiHunger extends Module {
     public void onActivate() {
         lastOnGround = mc.player.isOnGround();
         sendOnGroundTruePacket = true;
-		ClientCommandC2SPacket packet = new ClientCommandC2SPacket(mc.player, ClientCommandC2SPacket.Mode.STOP_SPRINTING);
-		mc.player.networkHandler.sendPacket(packet);
     }
 
     @EventHandler
@@ -79,7 +78,6 @@ public class AntiHunger extends Module {
             ignorePacket = true;
             return;
         }
-		ignorePacket = false;
         if (mc.player.isOnGround() && !lastOnGround && !sendOnGroundTruePacket) sendOnGroundTruePacket = true;
 
         if (mc.player.isOnGround() && sendOnGroundTruePacket && onGround.get()) {

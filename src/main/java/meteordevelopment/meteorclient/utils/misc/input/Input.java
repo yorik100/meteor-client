@@ -33,8 +33,8 @@ public class Input {
     public static boolean isPressed(KeyBinding bind) {
         return isKeyPressed(KeyBinds.getKey(bind));
     }
-	
-    public static boolean isPressed2(KeyBinding bind) {
+
+    public static boolean isPressedMouse(KeyBinding bind) {
         return isButtonPressed(KeyBinds.getKey(bind));
     }
 
